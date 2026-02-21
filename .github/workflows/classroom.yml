@@ -1,0 +1,219 @@
+name: Autograding Tests
+'on':
+  - push
+  - workflow_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: "Test 1: XML Layout - Counter Views (30 points)"
+      id: xml-layout-test
+      run: |
+        echo "=== Checking XML Layout for Counter App ==="
+        LAYOUT="app/src/main/res/layout/activity_main.xml"
+        SCORE=0
+        TOTAL=30
+
+        if [ ! -f "$LAYOUT" ]; then
+          echo "ERROR: $LAYOUT not found!"
+          exit 1
+        fi
+
+        # Check XML is well-formed
+        if python3 -c "
+        import xml.etree.ElementTree as ET
+        try:
+            ET.parse('$LAYOUT')
+            print('XML is well-formed')
+        except ET.ParseError as e:
+            print(f'XML Parse Error: {e}')
+            exit(1)
+        "; then
+          echo "✅ XML is well-formed"
+          SCORE=$((SCORE + 5))
+        fi
+
+        # Check for TextView with id tvCounter
+        if grep -q 'android:id="@+id/tvCounter"' "$LAYOUT"; then
+          echo "✅ Found TextView with id tvCounter"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Missing TextView with id tvCounter"
+        fi
+
+        # Check for Button with id btnAdd
+        if grep -q 'android:id="@+id/btnAdd"' "$LAYOUT"; then
+          echo "✅ Found Button with id btnAdd"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Missing Button with id btnAdd"
+        fi
+
+        # Check for Button with id btnSubtract
+        if grep -q 'android:id="@+id/btnSubtract"' "$LAYOUT"; then
+          echo "✅ Found Button with id btnSubtract"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Missing Button with id btnSubtract"
+        fi
+
+        # Check for Button with id btnReset
+        if grep -q 'android:id="@+id/btnReset"' "$LAYOUT"; then
+          echo "✅ Found Button with id btnReset"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Missing Button with id btnReset"
+        fi
+
+        # Check for ConstraintLayout
+        if grep -q 'ConstraintLayout' "$LAYOUT"; then
+          echo "✅ Using ConstraintLayout"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Not using ConstraintLayout"
+        fi
+
+        echo "XML Layout Score: $SCORE/$TOTAL"
+        if [ $SCORE -lt 20 ]; then
+          exit 1
+        fi
+
+    - name: "Test 2: Java Code - findViewById & Listeners (40 points)"
+      id: java-code-test
+      run: |
+        echo "=== Checking Java Code ==="
+        JAVA="app/src/main/java/com/example/counterapp/MainActivity.java"
+        SCORE=0
+        TOTAL=40
+
+        if [ ! -f "$JAVA" ]; then
+          echo "ERROR: $JAVA not found!"
+          exit 1
+        fi
+
+        # Check for Button variable declarations
+        BUTTON_VARS=$(grep -c 'Button\\s' "$JAVA" || true)
+        if [ "$BUTTON_VARS" -ge 3 ]; then
+          echo "✅ Found 3+ Button variable declarations"
+          SCORE=$((SCORE + 8))
+        elif [ "$BUTTON_VARS" -ge 1 ]; then
+          echo "⚠️ Found $BUTTON_VARS Button declarations (need 3)"
+          SCORE=$((SCORE + 3))
+        else
+          echo "❌ No Button variable declarations found"
+        fi
+
+        # Check for TextView variable
+        if grep -q 'TextView' "$JAVA"; then
+          echo "✅ Found TextView variable"
+          SCORE=$((SCORE + 4))
+        else
+          echo "❌ Missing TextView variable"
+        fi
+
+        # Check for findViewById calls
+        FIND_VIEW_COUNT=$(grep -c 'findViewById' "$JAVA" || true)
+        if [ "$FIND_VIEW_COUNT" -ge 4 ]; then
+          echo "✅ Found 4+ findViewById calls"
+          SCORE=$((SCORE + 10))
+        elif [ "$FIND_VIEW_COUNT" -ge 2 ]; then
+          echo "⚠️ Found $FIND_VIEW_COUNT findViewById calls (need 4)"
+          SCORE=$((SCORE + 5))
+        else
+          echo "❌ Insufficient findViewById calls ($FIND_VIEW_COUNT)"
+        fi
+
+        # Check for OnClickListener
+        LISTENER_COUNT=$(grep -c 'OnClickListener\\|setOnClickListener' "$JAVA" || true)
+        if [ "$LISTENER_COUNT" -ge 3 ]; then
+          echo "✅ Found 3+ OnClickListener implementations"
+          SCORE=$((SCORE + 10))
+        elif [ "$LISTENER_COUNT" -ge 1 ]; then
+          echo "⚠️ Found $LISTENER_COUNT OnClickListener(s) (need 3)"
+          SCORE=$((SCORE + 4))
+        else
+          echo "❌ No OnClickListener found"
+        fi
+
+        # Check for setText usage
+        if grep -q 'setText' "$JAVA"; then
+          echo "✅ Found setText usage"
+          SCORE=$((SCORE + 4))
+        else
+          echo "❌ Missing setText usage"
+        fi
+
+        # Check for counter logic (increment/decrement)
+        if grep -qE 'counter\\s*(\\+\\+|\\-\\-|\\+= *1|\\-= *1|= *counter *\\+ *1|= *counter *\\- *1)' "$JAVA" || grep -qE 'count\\s*(\\+\\+|\\-\\-|\\+= *1|\\-= *1|= *count *\\+ *1|= *count *\\- *1)' "$JAVA"; then
+          echo "✅ Found counter increment/decrement logic"
+          SCORE=$((SCORE + 4))
+        else
+          echo "⚠️ Could not detect counter logic pattern"
+        fi
+
+        echo "Java Code Score: $SCORE/$TOTAL"
+        if [ $SCORE -lt 20 ]; then
+          exit 1
+        fi
+
+    - name: "Test 3: QUESTIONS.md Content (30 points)"
+      id: questions-test
+      run: |
+        echo "=== Checking QUESTIONS.md ==="
+        QUESTIONS="QUESTIONS.md"
+        SCORE=0
+        TOTAL=30
+
+        if [ ! -f "$QUESTIONS" ]; then
+          echo "ERROR: $QUESTIONS not found!"
+          exit 1
+        fi
+
+        # Check file has substantial content (not just template)
+        WORD_COUNT=$(wc -w < "$QUESTIONS")
+        echo "Word count: $WORD_COUNT"
+
+        # Question 1: R class
+        if grep -qi 'R\\.' "$QUESTIONS" || grep -qi 'מחלקת R' "$QUESTIONS" || grep -qi 'R class' "$QUESTIONS"; then
+          echo "✅ Question 1 answered (R class)"
+          SCORE=$((SCORE + 10))
+        else
+          echo "❌ Question 1 not answered (R class)"
+        fi
+
+        # Question 2: findViewById before setContentView
+        if grep -qi 'setContentView' "$QUESTIONS" || grep -qi 'null' "$QUESTIONS" || grep -qi 'NullPointer\\|crash\\|קריסה\\|שגיאה' "$QUESTIONS"; then
+          echo "✅ Question 2 answered (findViewById before setContentView)"
+          SCORE=$((SCORE + 10))
+        else
+          echo "❌ Question 2 not answered"
+        fi
+
+        # Question 3: INVISIBLE vs GONE
+        if grep -qi 'INVISIBLE' "$QUESTIONS" && grep -qi 'GONE' "$QUESTIONS"; then
+          echo "✅ Question 3 answered (INVISIBLE vs GONE)"
+          SCORE=$((SCORE + 10))
+        else
+          echo "❌ Question 3 not answered (INVISIBLE vs GONE)"
+        fi
+
+        echo "Questions Score: $SCORE/$TOTAL"
+        if [ $SCORE -lt 10 ]; then
+          exit 1
+        fi
+
+    - name: Autograding Reporter
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        XML-LAYOUT-TEST_RESULTS: "${{steps.xml-layout-test.outcome}}"
+        JAVA-CODE-TEST_RESULTS: "${{steps.java-code-test.outcome}}"
+        QUESTIONS-TEST_RESULTS: "${{steps.questions-test.outcome}}"
+      with:
+        runners: xml-layout-test,java-code-test,questions-test
