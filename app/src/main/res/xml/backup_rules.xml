@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for more information.
+   Note: This file is ignored for devices running API 31+
+   because Android 12 (API 31) has a new set of change rules for backup.
+-->
+<full-backup-content>
+</full-backup-content>
